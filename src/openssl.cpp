@@ -103,7 +103,12 @@ ZSignAsset::OpenSSLInit::OpenSSLInit()
 
 bool ZSignAsset::CMSError()
 {
-	ERR_print_errors_fp(stdout);
+	unsigned long err = 0;
+	char buf[256] = { 0 };
+	while (0 != (err = ERR_get_error())) {
+		ERR_error_string_n(err, buf, sizeof(buf));
+		ZLog::ErrorV(">>> OpenSSL: %s\n", buf);
+	}
 	return false;
 }
 
@@ -459,7 +464,7 @@ bool ZSignAsset::GetCMSInfo(uint8_t * pCMSData, uint32_t uCMSLength, jvalue & jv
 				continue;
 			}
 
-			ASN1_OBJECT* obj = X509_ATTRIBUTE_get0_object(attr);
+			const ASN1_OBJECT* obj = X509_ATTRIBUTE_get0_object(attr);
 			if (!obj) {
 				continue;
 			}
@@ -468,13 +473,13 @@ bool ZSignAsset::GetCMSInfo(uint8_t * pCMSData, uint32_t uCMSLength, jvalue & jv
 			OBJ_obj2txt(txtobj, 128, obj, 1);
 
 			if (0 == strcmp("1.2.840.113549.1.9.3", txtobj)) { //V_ASN1_OBJECT
-				ASN1_TYPE* av = X509_ATTRIBUTE_get0_type(attr, 0);
+				const ASN1_TYPE* av = X509_ATTRIBUTE_get0_type(attr, 0);
 				if (NULL != av) {
 					jvOutput["attrs"]["ContentType"]["obj"] = txtobj;
 					jvOutput["attrs"]["ContentType"]["data"] = OBJ_nid2ln(OBJ_obj2nid(av->value.object));
 				}
 			} else if (0 == strcmp("1.2.840.113549.1.9.4", txtobj)) { //V_ASN1_OCTET_STRING
-				ASN1_TYPE* av = X509_ATTRIBUTE_get0_type(attr, 0);
+				const ASN1_TYPE* av = X509_ATTRIBUTE_get0_type(attr, 0);
 				if (NULL != av) {
 					string strSHASum;
 					char buf[16] = { 0 };
@@ -486,7 +491,7 @@ bool ZSignAsset::GetCMSInfo(uint8_t * pCMSData, uint32_t uCMSLength, jvalue & jv
 					jvOutput["attrs"]["MessageDigest"]["data"] = strSHASum;
 				}
 			} else if (0 == strcmp("1.2.840.113549.1.9.5", txtobj)) { //V_ASN1_UTCTIME
-				ASN1_TYPE* av = X509_ATTRIBUTE_get0_type(attr, 0);
+				const ASN1_TYPE* av = X509_ATTRIBUTE_get0_type(attr, 0);
 				if (NULL != av) {
 					BIO* mem = BIO_new(BIO_s_mem());
 					ASN1_UTCTIME_print(mem, av->value.utctime);
@@ -503,7 +508,7 @@ bool ZSignAsset::GetCMSInfo(uint8_t * pCMSData, uint32_t uCMSLength, jvalue & jv
 			} else if (0 == strcmp("1.2.840.113635.100.9.2", txtobj)) { //V_ASN1_SEQUENCE
 				jvOutput["attrs"]["CDHashes2"]["obj"] = txtobj;
 				for (int m = 0; m < nCount; m++) {
-					ASN1_TYPE* av = X509_ATTRIBUTE_get0_type(attr, m);
+					const ASN1_TYPE* av = X509_ATTRIBUTE_get0_type(attr, m);
 					if (NULL != av) {
 						ASN1_STRING* s = av->value.sequence;
 
@@ -530,7 +535,7 @@ bool ZSignAsset::GetCMSInfo(uint8_t * pCMSData, uint32_t uCMSLength, jvalue & jv
 					}
 				}
 			} else if (0 == strcmp("1.2.840.113635.100.9.1", txtobj)) { //V_ASN1_OCTET_STRING
-				ASN1_TYPE* av = X509_ATTRIBUTE_get0_type(attr, 0);
+				const ASN1_TYPE* av = X509_ATTRIBUTE_get0_type(attr, 0);
 				if (NULL != av) {
 					string strPList;
 					strPList.append((const char*)av->value.octet_string->data, av->value.octet_string->length);
@@ -538,7 +543,7 @@ bool ZSignAsset::GetCMSInfo(uint8_t * pCMSData, uint32_t uCMSLength, jvalue & jv
 					jvOutput["attrs"]["CDHashes"]["data"] = strPList;
 				}
 			} else {
-				ASN1_TYPE* av = X509_ATTRIBUTE_get0_type(attr, 0);
+				const ASN1_TYPE* av = X509_ATTRIBUTE_get0_type(attr, 0);
 				if (NULL != av) {
 					jvalue jvAttr;
 					jvAttr["obj"] = txtobj;
@@ -612,7 +617,14 @@ bool ZSignAsset::Init(
 
 	X509* x509Cert = NULL;
 	EVP_PKEY* evpPKey = NULL;
-	BIO* bioPKey = BIO_new_file(strPKeyFile.c_str(), "rb");
+	string strPKeyData;
+	BIO* bioPKey = NULL;
+	if (!strPKeyFile.empty()) {
+		ZFile::ReadFile(strPKeyFile.c_str(), strPKeyData);
+	}
+	if (!strPKeyData.empty()) {
+		bioPKey = BIO_new_mem_buf(strPKeyData.data(), (int)strPKeyData.size());
+	}
 	if (NULL != bioPKey) {
 		evpPKey = PEM_read_bio_PrivateKey(bioPKey, NULL, NULL, (void*)strPassword.c_str());
 		if (NULL == evpPKey) {
@@ -641,7 +653,9 @@ bool ZSignAsset::Init(
 	}
 
 	if (NULL == x509Cert && !strCertFile.empty()) {
-		BIO* bioCert = BIO_new_file(strCertFile.c_str(), "r");
+		string strCertData;
+		ZFile::ReadFile(strCertFile.c_str(), strCertData);
+		BIO* bioCert = strCertData.empty() ? NULL : BIO_new_mem_buf(strCertData.data(), (int)strCertData.size());
 		if (NULL != bioCert) {
 			x509Cert = PEM_read_bio_X509(bioCert, NULL, 0, NULL);
 			if (NULL == x509Cert) {

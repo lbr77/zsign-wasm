@@ -19,6 +19,63 @@ brew install ideviceinstaller
 
 ### Linux:
 
+#### wasm
+
+Activate emscripten environment first:
+
+```bash
+source /path/to/emsdk/emsdk_env.sh
+```
+
+Then build wasm and bundle outputs:
+
+```bash
+cd build/wasm
+make clean && make bundle
+```
+
+Bundle outputs are generated in `dist/`:
+- `zsign-wasm.min.js` (single file, includes wasm)
+- `zsign-wasm.js` + `zsign-wasm.wasm` + `ZsignWasmClient.js` (split files)
+
+
+clone from https://github.com/jedisct1/openssl-wasm
+`OPENSSL_WASM` defaults to `../openssl-wasm/precompiled` (relative to repo root).  
+If your path is different, override it:
+
+```bash
+cd build/wasm
+make clean && make bundle OPENSSL_WASM=/absolute/path/to/openssl-wasm/precompiled
+```
+
+Node usage (single-file bundle):
+
+```js
+const fs = require('fs');
+const { ZsignWasmClient } = require('./dist/zsign-wasm.min.js');
+
+(async () => {
+  const client = await ZsignWasmClient.create();
+  client.setLogLevel(0);
+
+  const inputMachO = fs.readFileSync('/tmp/in.macho');
+  const cert = fs.readFileSync('/tmp/dev.cer');
+  const pkey = fs.readFileSync('/tmp/dev.p12'); // or private key bytes
+  const prov = fs.readFileSync('/tmp/dev.mobileprovision');
+
+  const signedMachO = client.signMacho(inputMachO, {
+    cert,
+    pkey,
+    prov,
+    password: '123456', // optional
+    adhoc: false,
+    forceSign: true
+  });
+
+  fs.writeFileSync('/tmp/out.signed.macho', Buffer.from(signedMachO));
+})();
+```
+
 #### Ubuntu 22.04 / Debian 12 / Mint 21:
 
 ```bash
