@@ -20,6 +20,24 @@ int zsign_sign_macho(
 	int sha256_only,
 	int force_sign);
 
+// Bundle interface. input_folder can be app folder or its parent (e.g. Payload/).
+// Return 0 on success, non-zero on failure.
+int zsign_sign_bundle(
+	const char* input_folder,
+	const char* cert_file,
+	const char* pkey_file,
+	const char* prov_file,
+	const char* password,
+	const char* entitlements_file,
+	const char* bundle_id,
+	const char* bundle_version,
+	const char* display_name,
+	int adhoc,
+	int sha256_only,
+	int force_sign,
+	int weak_inject,
+	int enable_cache);
+
 // Memory interface. Inputs may be NULL/0 when not needed.
 // On success:
 //   *output_data points to a newly allocated buffer

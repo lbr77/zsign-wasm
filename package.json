@@ -1,0 +1,31 @@
+{
+  "name": "zsign-wasm-resigner",
+  "version": "0.1.0",
+  "description": "WASM full resigning toolkit for ipa/app bundle usage in Node.js and frontend toolchains.",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "./npm/index.cjs",
+  "module": "./npm/index.mjs",
+  "types": "./npm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./npm/index.d.ts",
+      "require": "./npm/index.cjs",
+      "import": "./npm/index.mjs"
+    }
+  },
+  "files": [
+    "dist/zsign-wasm.min.js",
+    "npm/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build:wasm": "cd build/wasm && make clean && make bundle",
+    "build": "bun run build:wasm",
+    "prepack": "bun run build"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
+  }
+}

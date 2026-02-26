@@ -1,7 +1,8 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+const nodeRequire = typeof require === 'function' ? require : null;
+const fs = nodeRequire ? nodeRequire('fs') : null;
+const path = nodeRequire ? nodeRequire('path') : null;
 
 class ZsignWasmClient {
   static async create(options = {}) {
@@ -30,7 +31,15 @@ class ZsignWasmClient {
     this.mod = wasmModule;
     this._cwrapVersion = this.mod.cwrap('zsign_version', 'string', []);
     this._cwrapSetLogLevel = this.mod.cwrap('zsign_set_log_level', 'number', ['number']);
+    this._cwrapSignBundle = this.mod.cwrap('zsign_sign_bundle', 'number', [
+      'string', 'string', 'string', 'string', 'string', 'string', 'string', 'string', 'string',
+      'number', 'number', 'number', 'number', 'number'
+    ]);
     this._retCodeMessage = {
+      '-204': 'bundle signing failed',
+      '-203': 'failed to initialize signing assets',
+      '-202': 'non ad-hoc mode requires key and provisioning',
+      '-201': 'invalid bundle folder path',
       '-101': 'output pointers are invalid',
       '-102': 'input Mach-O buffer is empty',
       '-103': 'failed to create temporary input file',
@@ -50,6 +59,10 @@ class ZsignWasmClient {
   }
 
   static _resolveModuleFactoryPath(moduleFactoryPath) {
+    if (!path) {
+      throw new Error('moduleFactoryPath is required in non-Node runtime.');
+    }
+
     if (moduleFactoryPath) {
       return path.isAbsolute(moduleFactoryPath)
         ? moduleFactoryPath
@@ -76,6 +89,50 @@ class ZsignWasmClient {
 
   setLogLevel(level) {
     return this._cwrapSetLogLevel(level | 0);
+  }
+
+  signBundle(inputFolder, options = {}) {
+    if (!inputFolder || typeof inputFolder !== 'string') {
+      throw new TypeError('inputFolder must be a non-empty string.');
+    }
+
+    const certFile = typeof options.certFile === 'string' ? options.certFile : '';
+    const pkeyFile = typeof options.pkeyFile === 'string' ? options.pkeyFile : '';
+    const provFile = typeof options.provFile === 'string' ? options.provFile : '';
+    const password = typeof options.password === 'string' ? options.password : '';
+    const entitlementsFile = typeof options.entitlementsFile === 'string' ? options.entitlementsFile : '';
+    const bundleId = typeof options.bundleId === 'string' ? options.bundleId : '';
+    const bundleVersion = typeof options.bundleVersion === 'string' ? options.bundleVersion : '';
+    const displayName = typeof options.displayName === 'string' ? options.displayName : '';
+    const adhoc = !!options.adhoc;
+    const sha256Only = !!options.sha256Only;
+    const forceSign = options.forceSign !== undefined ? !!options.forceSign : true;
+    const weakInject = !!options.weakInject;
+    const enableCache = !!options.enableCache;
+
+    const ret = this._cwrapSignBundle(
+      inputFolder,
+      certFile,
+      pkeyFile,
+      provFile,
+      password,
+      entitlementsFile,
+      bundleId,
+      bundleVersion,
+      displayName,
+      adhoc ? 1 : 0,
+      sha256Only ? 1 : 0,
+      forceSign ? 1 : 0,
+      weakInject ? 1 : 0,
+      enableCache ? 1 : 0
+    );
+
+    if (ret !== 0) {
+      const reason = this._retCodeMessage[String(ret)] || 'unknown error';
+      throw new Error(`zsign_sign_bundle failed: ${ret} (${reason})`);
+    }
+
+    return 0;
   }
 
   signMacho(inputMachO, options = {}) {
@@ -159,8 +216,10 @@ class ZsignWasmClient {
   }
 
   _requireFs() {
-    // eslint-disable-next-line global-require
-    return require('fs');
+    if (!fs) {
+      throw new Error('fs is not available in this runtime.');
+    }
+    return fs;
   }
 
   _toOptionalUint8Array(value, name) {

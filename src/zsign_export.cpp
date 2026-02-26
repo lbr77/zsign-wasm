@@ -1,4 +1,5 @@
 #include "common.h"
+#include "bundle.h"
 #include "macho.h"
 #include "openssl.h"
 #include "zsign_export.h"
@@ -163,6 +164,72 @@ ZSIGN_EXPORT int zsign_sign_macho(
 	string strCodeResourcesData;
 	bool bRet = macho.Sign(&zsa, bForceSign, "", strInfoSHA1, strInfoSHA256, strCodeResourcesData);
 	return bRet ? 0 : -6;
+}
+
+ZSIGN_EXPORT int zsign_sign_bundle(
+	const char* input_folder,
+	const char* cert_file,
+	const char* pkey_file,
+	const char* prov_file,
+	const char* password,
+	const char* entitlements_file,
+	const char* bundle_id,
+	const char* bundle_version,
+	const char* display_name,
+	int adhoc,
+	int sha256_only,
+	int force_sign,
+	int weak_inject,
+	int enable_cache)
+{
+	string inputFolder = SafePath(input_folder);
+	if (inputFolder.empty() || !ZFile::IsFolder(inputFolder.c_str())) {
+		ZLog::ErrorV(">>> Invalid bundle folder path! %s\n", inputFolder.c_str());
+		return -201;
+	}
+
+	string certFile = SafePath(cert_file);
+	string pkeyFile = SafePath(pkey_file);
+	string provFile = SafePath(prov_file);
+	string entitlementsFile = SafePath(entitlements_file);
+	string passwd = SafeString(password);
+	string bundleId = SafeString(bundle_id);
+	string bundleVersion = SafeString(bundle_version);
+	string displayName = SafeString(display_name);
+
+	bool bAdhoc = (adhoc != 0);
+	bool bSHA256Only = (sha256_only != 0);
+	bool bForceSign = (force_sign != 0);
+	bool bWeakInject = (weak_inject != 0);
+	bool bEnableCache = (enable_cache != 0);
+
+	if (!bAdhoc && (pkeyFile.empty() || provFile.empty())) {
+		ZLog::Error(">>> Non ad-hoc mode needs private key and provisioning profile.\n");
+		return -202;
+	}
+
+	if (ZLog::IsDebug()) {
+		ZFile::CreateFolder("./.zsign_debug");
+	}
+
+	ZSignAsset zsa;
+	if (!zsa.Init(certFile, pkeyFile, provFile, entitlementsFile, passwd, bAdhoc, bSHA256Only, false)) {
+		return -203;
+	}
+
+	ZBundle bundle;
+	vector<string> arrDylibFiles;
+	bool bRet = bundle.SignFolder(
+		&zsa,
+		inputFolder,
+		bundleId,
+		bundleVersion,
+		displayName,
+		arrDylibFiles,
+		bForceSign,
+		bWeakInject,
+		bEnableCache);
+	return bRet ? 0 : -204;
 }
 
 ZSIGN_EXPORT int zsign_sign_macho_mem(

@@ -39,7 +39,7 @@ Bundle outputs are generated in `dist/`:
 - `zsign-wasm.js` + `zsign-wasm.wasm` + `ZsignWasmClient.js` (split files)
 
 
-clone from https://github.com/jedisct1/openssl-wasm
+Prepare OpenSSL wasm first (for example: [openssl-wasm](https://github.com/jedisct1/openssl-wasm)).
 `OPENSSL_WASM` defaults to `../openssl-wasm/precompiled` (relative to repo root).  
 If your path is different, override it:
 
@@ -53,14 +53,49 @@ Node usage (single-file bundle):
 ```js
 const { ZsignWasmClient } = require('./dist/zsign-wasm.min.js');
 const fs = require('fs');
+
 (async () => {
-    const client = await ZsignWasmClient.create();
-    const inputMacho = fs.readFileSync("./test/dylib/bin/demo1.dylib");
-    const cert = fs.readFileSync("./test/assets/generated/local_test.cer");
-    const key = fs.readFileSync("./test/assets/generated/local_test.key");
-    const signedMacho = await client.signMacho(inputMacho, cert, key);
-    fs.writeFileSync("./test/dylib/bin/demo1-signed.dylib", Buffer.from(signedMacho));
-})()
+  const client = await ZsignWasmClient.create();
+  const inputMacho = fs.readFileSync('./test/dylib/bin/demo1.dylib');
+  const cert = fs.readFileSync('./test/assets/generated/local_test.cer');
+  const pkey = fs.readFileSync('./test/assets/generated/local_test.p12');
+  const prov = fs.readFileSync('/tmp/dev.mobileprovision');
+
+  const signedMacho = client.signMacho(inputMacho, {
+    cert,
+    pkey,
+    prov,
+    password: '123456',
+    adhoc: false,
+    forceSign: true
+  });
+
+  fs.writeFileSync('./test/dylib/bin/demo1-signed.dylib', Buffer.from(signedMacho));
+})();
+```
+
+NPM package usage (full resign, Vue/Vite friendly):
+
+```bash
+bun install
+bun run build
+```
+
+```js
+import { createResigner } from 'zsign-wasm-resigner';
+
+const resigner = await createResigner();
+const signedIpa = await resigner.signIpa(inputIpaBytes, {
+  cert: certBytes,               // optional in adhoc mode
+  pkey: pkeyOrP12Bytes,          // required when adhoc=false
+  prov: mobileProvisionBytes,    // required when adhoc=false
+  password: '123456',            // optional
+  bundleId: 'com.example.newid', // optional
+  bundleVersion: '2',            // optional
+  displayName: 'NewName',        // optional
+  adhoc: false,
+  forceSign: true
+});
 ```
 
 #### Ubuntu 22.04 / Debian 12 / Mint 21:

@@ -22,12 +22,13 @@ TARGET = $(BINDIR)/zsign-wasm.js
 DISTDIR = ../../dist
 CLIENT = ZsignWasmClient.js
 SINGLE = $(DISTDIR)/zsign-wasm.min.js
-PACKER = pack-single.js
+PACKER = pack-single.cjs
 
 SRCS = ../../src/archo.cpp
 SRCS += ../../src/macho.cpp
 SRCS += ../../src/openssl.cpp
 SRCS += ../../src/signing.cpp
+SRCS += ../../src/bundle.cpp
 SRCS += ../../src/zsign_export.cpp
 SRCS += ../../src/common/base64.cpp
 SRCS += ../../src/common/fs.cpp
@@ -38,7 +39,7 @@ SRCS += ../../src/common/timer.cpp
 SRCS += ../../src/common/util.cpp
 SRCS += ../../src/common/wasm_compat.cpp
 
-LDFLAGS += -sEXPORTED_FUNCTIONS='["_zsign_version","_zsign_set_log_level","_zsign_sign_macho","_zsign_sign_macho_mem","_zsign_free_buffer","_malloc","_free"]'
+LDFLAGS += -sEXPORTED_FUNCTIONS='["_zsign_version","_zsign_set_log_level","_zsign_sign_macho","_zsign_sign_bundle","_zsign_sign_macho_mem","_zsign_free_buffer","_malloc","_free"]'
 LDFLAGS += -sEXPORTED_RUNTIME_METHODS='["ccall","cwrap","UTF8ToString","stringToUTF8","lengthBytesUTF8","HEAPU8","HEAPU32"]'
 
 OBJS = $(SRCS:../../src/%.cpp=$(OBJDIR)/%.o)
