@@ -51,29 +51,16 @@ make clean && make bundle OPENSSL_WASM=/absolute/path/to/openssl-wasm/precompile
 Node usage (single-file bundle):
 
 ```js
-const fs = require('fs');
 const { ZsignWasmClient } = require('./dist/zsign-wasm.min.js');
-
+const fs = require('fs');
 (async () => {
-  const client = await ZsignWasmClient.create();
-  client.setLogLevel(0);
-
-  const inputMachO = fs.readFileSync('/tmp/in.macho');
-  const cert = fs.readFileSync('/tmp/dev.cer');
-  const pkey = fs.readFileSync('/tmp/dev.p12'); // or private key bytes
-  const prov = fs.readFileSync('/tmp/dev.mobileprovision');
-
-  const signedMachO = client.signMacho(inputMachO, {
-    cert,
-    pkey,
-    prov,
-    password: '123456', // optional
-    adhoc: false,
-    forceSign: true
-  });
-
-  fs.writeFileSync('/tmp/out.signed.macho', Buffer.from(signedMachO));
-})();
+    const client = await ZsignWasmClient.create();
+    const inputMacho = fs.readFileSync("./test/dylib/bin/demo1.dylib");
+    const cert = fs.readFileSync("./test/assets/generated/local_test.cer");
+    const key = fs.readFileSync("./test/assets/generated/local_test.key");
+    const signedMacho = await client.signMacho(inputMacho, cert, key);
+    fs.writeFileSync("./test/dylib/bin/demo1-signed.dylib", Buffer.from(signedMacho));
+})()
 ```
 
 #### Ubuntu 22.04 / Debian 12 / Mint 21:
