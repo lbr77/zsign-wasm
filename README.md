@@ -98,6 +98,79 @@ const signedIpa = await resigner.signIpa(inputIpaBytes, {
 });
 ```
 
+TypeScript wrapper usage (enhanced type safety):
+
+```bash
+cd js
+npm install
+npm run build
+```
+
+```typescript
+import { createClient, createResigner } from './js/dist/index';
+import * as fs from 'fs';
+
+// Sign Mach-O files
+const client = await createClient();
+const machO = fs.readFileSync('input.dylib');
+const result = client.signMachO(machO, {
+  cert: fs.readFileSync('cert.cer'),
+  pkey: fs.readFileSync('key.pem'),
+  adhoc: true
+});
+fs.writeFileSync('output.dylib', result.data);
+
+// Resign IPA files
+const resigner = await createResigner();
+const ipa = fs.readFileSync('input.ipa');
+const resigned = await resigner.signIpa(ipa, {
+  cert: fs.readFileSync('cert.cer'),
+  pkey: fs.readFileSync('key.pem'),
+  prov: fs.readFileSync('profile.mobileprovision'),
+  bundleId: 'com.example.new',
+  displayName: 'New App',
+  adhoc: true
+});
+fs.writeFileSync('output.ipa', resigned.data);
+```
+
+See [js/README.md](js/README.md) for more details.
+
+### Building Certificate Chains
+
+For proper code signing, you need a complete certificate chain (Developer Cert + WWDR). The TypeScript wrapper includes utilities for this:
+
+```typescript
+import { createResigner, buildCertificateChainDER } from './js/dist/index';
+import * as fs from 'fs';
+
+async function signWithCompleteChain() {
+  const resigner = await createResigner();
+
+  // Load your developer certificate
+  const developerCert = fs.readFileSync('developer.cer');
+
+  // Automatically download WWDR and build complete certificate chain
+  const certChain = await buildCertificateChainDER({
+    developerCert
+  });
+
+  // Sign with complete chain
+  const ipa = fs.readFileSync('input.ipa');
+  const result = await resigner.signIpa(ipa, {
+    cert: certChain,  // Complete chain: Developer + WWDR
+    pkey: fs.readFileSync('private.key'),
+    prov: fs.readFileSync('profile.mobileprovision'),
+    adhoc: false,
+    forceSign: true
+  });
+
+  fs.writeFileSync('output.ipa', result.data);
+}
+```
+
+See [js/CERTCHAIN.md](js/CERTCHAIN.md) for detailed documentation.
+
 #### Ubuntu 22.04 / Debian 12 / Mint 21:
 
 ```bash

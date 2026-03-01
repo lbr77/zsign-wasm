@@ -614,6 +614,7 @@ bool ZSign::SlotBuildCMSSignature(ZSignAsset* pSignAsset,
 
 	string strCMSData;
 	if (!pSignAsset->GenerateCMS(strCodeDirectorySlot, strCDHashesPlist, strCodeDirectorySlotSHA1, strAltnateCodeDirectorySlot256, strCMSData)) {
+		ZLog::Error(">>> Generate CMS failed!\n");
 		return false;
 	}
 
