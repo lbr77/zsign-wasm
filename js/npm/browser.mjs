@@ -1,8 +1,5 @@
 import JSZip from 'jszip';
-
-const MODULE_URL = new URL(import.meta.url);
-const IS_NODE = MODULE_URL.protocol === 'file:';
-const WASM_BUNDLE_URL = new URL('../dist/zsign-wasm.min.js', MODULE_URL);
+import wasmBundleUrl from '../dist/zsign-wasm.min.js?url';
 
 let wasmBundlePromise = null;
 
@@ -42,54 +39,27 @@ function resolveBundleExports(input) {
   return null;
 }
 
-async function loadNodeBundle() {
-  const [{ createRequire }, { fileURLToPath }] = await Promise.all([
-    import('node:module'),
-    import('node:url')
-  ]);
-  const require = createRequire(import.meta.url);
-  return require(fileURLToPath(WASM_BUNDLE_URL));
-}
-
-async function evalBrowserBundle() {
-  const response = await fetch(WASM_BUNDLE_URL.href);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch wasm bundle: ${response.status} ${response.statusText}`);
-  }
-
-  const source = await response.text();
-  const cjsModule = { exports: {} };
-  const evaluate = new Function(
-    'module',
-    'exports',
-    'require',
-    '__filename',
-    '__dirname',
-    'globalThis',
-    source
-  );
-  evaluate(cjsModule, cjsModule.exports, undefined, WASM_BUNDLE_URL.pathname, '', globalThis);
-  return cjsModule.exports;
-}
-
-async function loadBrowserBundle() {
-  try {
-    const imported = await import(/* @vite-ignore */ WASM_BUNDLE_URL.href);
-    const resolved = resolveBundleExports(imported);
-    if (resolved) {
-      return resolved;
-    }
-  } catch (_error) {
-  }
-
-  return evalBrowserBundle();
-}
-
 async function getWasmBundle() {
   if (!wasmBundlePromise) {
     wasmBundlePromise = (async () => {
-      const loaded = IS_NODE ? await loadNodeBundle() : await loadBrowserBundle();
-      const resolved = resolveBundleExports(loaded);
+      const response = await fetch(wasmBundleUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch wasm bundle: ${response.status} ${response.statusText}`);
+      }
+
+      const source = await response.text();
+      const cjsModule = { exports: {} };
+      const evaluate = new Function(
+        'module',
+        'exports',
+        'require',
+        '__filename',
+        '__dirname',
+        'globalThis',
+        source
+      );
+      evaluate(cjsModule, cjsModule.exports, undefined, wasmBundleUrl, '', globalThis);
+      const resolved = resolveBundleExports(cjsModule.exports);
       if (!resolved) {
         throw new Error('Invalid wasm bundle exports.');
       }

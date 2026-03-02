@@ -1,12 +1,12 @@
 import type {
   SignMachOOptions,
   SignIpaOptions
-} from '../npm/index.mjs';
+} from '../npm/browser.mjs';
 
 import {
   ZsignWasmResigner,
   ZsignWasmClient
-} from '../npm/index.mjs';
+} from '../npm/browser.mjs';
 
 export interface CreateResignerOptions {
   moduleFactory?: (opts?: Record<string, unknown>) => Promise<unknown>;
